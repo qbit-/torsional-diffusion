@@ -1,0 +1,14 @@
+name: base
+channels:
+  - conda-forge
+  - defaults
+  - pytorch
+  - pyg
+dependencies:
+  - python=3.9
+  - rdkit
+  - pyaml
+  - matplotlib
+  - pip
+  - pip:
+    - e3nn
