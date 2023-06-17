@@ -1,0 +1,26 @@
+name: base
+channels:
+  - conda-forge
+  - defaults
+  - pytorch
+  - pyg
+dependencies:
+  - python=3.9
+  - rdkit
+  - pyaml
+  - matplotlib
+  - git
+  - openssh
+  - pip
+  - gdown
+  - tmux
+  - ipykernel
+  - pytorch-gpu
+  - pyg
+  - torch-scatter
+  - pytorch_cluster
+  - networkx
+  - nvtop
+  - htop
+  - pip:
+    - e3nn

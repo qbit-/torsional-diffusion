@@ -1,0 +1,19 @@
+services:
+    toolkit:
+        runtime: nvidia
+        #user: 0:0
+        build:
+            context: .
+            dockerfile: ./Dockerfile
+        image: qbit271/torsional-diffusion:latest
+        init: true
+        mem_limit: 300gb
+        shm_size: 200gb
+        cpus: 36.0
+        logging:
+            options:
+                max-size: '10m'
+                max-file: '3'
+        volumes:
+            - ../../torsional-diffusion:/workspace
+        entrypoint: ['/bin/bash', '-c', '/usr/local/bin/_entrypoint.sh sleep infinity']

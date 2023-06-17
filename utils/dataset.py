@@ -7,7 +7,8 @@ import glob, pickle, random
 import os.path as osp
 import torch, tqdm
 import copy
-from torch_geometric.data import Dataset, DataLoader
+from torch_geometric.data import Dataset
+from torch_geometric.loader import DataLoader
 from torch_geometric.transforms import BaseTransform
 from collections import defaultdict
 
@@ -222,7 +223,7 @@ class ConformerDataset(Dataset):
             return None
 
         data = featurize_mol(correct_mol, self.types)
-        normalized_weights = list(np.array(weights) / np.sum(weights))
+        normalized_weights = list(np.array(weights) / (np.sum(weights) + 1e-8))
         if np.isnan(normalized_weights).sum() != 0:
             print(name, len(confs), len(pos), weights)
             normalized_weights = [1 / len(weights)] * len(weights)
