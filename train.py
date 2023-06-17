@@ -1,5 +1,6 @@
 import math, os, torch, yaml
-torch.multiprocessing.set_sharing_strategy('file_system')
+torch.multiprocessing.set_sharing_strategy('file_descriptor')
+from accelerate import Accelerator, DistributedDataParallelKwargs
 import numpy as np
 from rdkit import RDLogger
 from utils.dataset import construct_loader
@@ -17,85 +18,92 @@ RDLogger.DisableLog('rdApp.*')
 """
 
 
-def train(args, model, optimizer, scheduler, train_loader, val_loader):
+def train(args, accelerator, model, optimizer, scheduler, train_loader, val_loader):
     best_val_loss = math.inf
     best_epoch = 0
 
-    print("Starting training...")
+    accelerator.print("Starting training...")
     for epoch in range(args.n_epochs):
 
-        train_loss, base_train_loss = train_epoch(model, train_loader, optimizer, device)
-        print("Epoch {}: Training Loss {}  base loss {}".format(epoch, train_loss, base_train_loss))
+        train_loss, base_train_loss = train_epoch(accelerator, model, train_loader, optimizer)
+        accelerator.print("Epoch {}: Training Loss {}  base loss {}".format(epoch, train_loss, base_train_loss))
 
-        val_loss, base_val_loss = test_epoch(model, val_loader, device)
-        print("Epoch {}: Validation Loss {} base loss {}".format(epoch, val_loss, base_val_loss))
+        val_loss, base_val_loss = test_epoch(accelerator, model, val_loader)
+        accelerator.print("Epoch {}: Validation Loss {} base loss {}".format(epoch, val_loss, base_val_loss))
 
         if scheduler:
             scheduler.step(val_loss)
 
-        if val_loss <= best_val_loss:
-            best_val_loss = val_loss
-            best_epoch = epoch
-            torch.save(model.state_dict(), os.path.join(args.log_dir, 'best_model.pt'))
+        if accelerator.is_main_process:
+            if val_loss <= best_val_loss:
+                best_val_loss = val_loss
+                best_epoch = epoch
+                accelerator.save(
+                    accelerator.unwrap_model(model).state_dict(),
+                    os.path.join(args.log_dir, 'best_model.pt'))
 
-        torch.save({
-            'epoch': epoch,
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'scheduler': scheduler.state_dict(),
-        }, os.path.join(args.log_dir, 'last_model.pt'))
+            accelerator.save({
+                'epoch': epoch,
+                'model': accelerator.unwrap_model(model).state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'scheduler': scheduler.state_dict(),
+            }, os.path.join(args.log_dir, 'last_model.pt'))
 
-    print("Best Validation Loss {} on Epoch {}".format(best_val_loss, best_epoch))
+    accelerator.print("Best Validation Loss {} on Epoch {}".format(best_val_loss, best_epoch))
 
 
-def boltzmann_train(args, model, optimizer, train_loader, val_loader, resampler):
-    print("Starting training...")
+def boltzmann_train(args, accelerator, model, optimizer, train_loader, val_loader, resampler):
+    accelerator.print("Starting training...")
 
     val_ess = val_loader.dataset.resample_all(resampler, temperature=args.temp)
-    print(f"Initial val ESS: Mean {np.mean(val_ess):.4f} Median {np.median(val_ess):.4f}")
+    accelerator.print(f"Initial val ESS: Mean {np.mean(val_ess):.4f} Median {np.median(val_ess):.4f}")
     best_val = val_ess
 
     for epoch in range(args.n_epochs):
         if args.adjust_temp:
             train_loader.dataset.boltzmann_resampler.temp = (3000 - args.temp) / (epoch + 1) + args.temp
 
-        train_loss, base_train_loss = train_epoch(model, train_loader, optimizer, device)
-        print("Epoch {}: Training Loss {}  base loss {}".format(epoch, train_loss, base_train_loss))
+        train_loss, base_train_loss = train_epoch(accelerator, model, train_loader, optimizer)
+        accelerator.print("Epoch {}: Training Loss {}  base loss {}".format(epoch, train_loss, base_train_loss))
         if epoch % 5 == 0:
             val_ess = val_loader.dataset.resample_all(resampler, temperature=args.temp)
-            print(f"Epoch {epoch} val ESS: Mean {np.mean(val_ess):.4f} Median {np.median(val_ess):.4f}")
+            accelerator.print(f"Epoch {epoch} val ESS: Mean {np.mean(val_ess):.4f} Median {np.median(val_ess):.4f}")
 
-            if best_val > val_ess:
-                best_val = val_ess
-                torch.save(model.state_dict(), os.path.join(args.log_dir, 'best_model.pt'))
+            if accelerator.is_main_process:
+                if best_val > val_ess:
+                    best_val = val_ess
+                    accelerator.save(
+                        accelerator.unwrap_model(model).state_dict(),
+                        os.path.join(args.log_dir, 'best_model.pt'))
 
-            torch.save({
-                'epoch': epoch,
-                'model': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
-                'scheduler': scheduler.state_dict(),
-            }, os.path.join(args.log_dir, 'last_model.pt'))
+                accelerator.save({
+                    'epoch': epoch,
+                    'model': accelerator.unwrap_model(model).state_dict(),
+                    'optimizer': optimizer.state_dict(),
+                    'scheduler': scheduler.state_dict(),
+                }, os.path.join(args.log_dir, 'last_model.pt'))
 
 
 if __name__ == '__main__':
     args = parse_train_args()
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+    accelerator = Accelerator(kwargs_handlers=[ddp_kwargs])
 
     # build model
     if args.restart_dir:
         with open(f'{args.restart_dir}/model_parameters.yml') as f:
             args_old = Namespace(**yaml.full_load(f))
 
-        model = get_model(args_old).to(device)
+        model = get_model(args_old).to(accelerator.device)
         state_dict = torch.load(f'{args.restart_dir}/best_model.pt', map_location=torch.device('cpu'))
         model.load_state_dict(state_dict, strict=True)
 
     else:
-        model = get_model(args).to(device)
+        model = get_model(args).to(accelerator.device)
 
     numel = sum([p.numel() for p in model.parameters()])
 
-    # construct loader and set device
+    # construct loader
     if args.boltzmann_training:
         boltzmann_resampler = BoltzmannResampler(args, model)
     else:
@@ -105,12 +113,15 @@ if __name__ == '__main__':
     # get optimizer and scheduler
     optimizer, scheduler = get_optimizer_and_scheduler(args, model)
 
+    # prepare objects with accelerator
+    model, optimizer, train_loader, val_loader, scheduler = accelerator.prepare(
+        model, optimizer, train_loader, val_loader, scheduler
+    )
     # record parameters
     yaml_file_name = os.path.join(args.log_dir, 'model_parameters.yml')
     save_yaml_file(yaml_file_name, args.__dict__)
-    args.device = device
 
     if args.boltzmann_training:
-        boltzmann_train(args, model, optimizer, train_loader, val_loader, boltzmann_resampler)
+        boltzmann_train(args, accelerator, model, optimizer, train_loader, val_loader, boltzmann_resampler)
     else:
-        train(args, model, optimizer, scheduler, train_loader, val_loader)
+        train(args, accelerator, model, optimizer, scheduler, train_loader, val_loader)
