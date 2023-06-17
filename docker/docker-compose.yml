@@ -8,8 +8,8 @@ services:
         image: qbit271/torsional-diffusion:latest
         init: true
         mem_limit: 300gb
-        shm_size: 20gb
-        cpus: 30.0
+        shm_size: 200gb
+        cpus: 36.0
         logging:
             options:
                 max-size: '10m'

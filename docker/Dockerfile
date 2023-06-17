@@ -42,8 +42,8 @@ RUN grep --invert-match "source /usr/local/bin/_activate_current_env.sh" \
     echo "source /usr/local/bin/_activate_current_env.sh" >> /home/$MAMBA_USER/.bashrc
 
 # install packages
-COPY --chown=mamba:mamba environment.yaml /tmp/env.yaml
-RUN micromamba install -y -f /tmp/env.yaml && \
+COPY --chown=mamba:mamba environment.lock /tmp/env.lock
+RUN micromamba install -y -f /tmp/env.lock && \
    micromamba clean --all --yes
 
 # add script to infinitely spin the docker container
