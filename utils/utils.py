@@ -24,8 +24,9 @@ def get_optimizer_and_scheduler(args, model):
         raise NotImplementedError("Optimizer not implemented.")
 
     if args.scheduler == 'plateau':
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.7,
-                                                               patience=args.scheduler_patience, min_lr=args.lr / 100)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, mode='min', factor=0.7,
+            patience=args.scheduler_patience, min_lr=args.lr / 100)
     else:
         print('No scheduler')
         scheduler = None
