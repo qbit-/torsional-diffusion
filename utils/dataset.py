@@ -84,12 +84,13 @@ class ConformerDataset(Dataset):
         split = sorted(np.load(split_path, allow_pickle=True)[split_idx])
         if limit_molecules:
             split = split[:limit_molecules]
-        smiles = np.array(sorted(glob.glob(osp.join(self.root, '*.pickle'))))
-        smiles = smiles[split]
+        files = np.array(sorted(glob.glob(osp.join(self.root, '*.pickle'))))
+        files = files[split]
 
         self.open_pickles = {}
         if pickle_dir:
-            smiles = [(i // mols_per_pickle, smi[len(root):-7]) for i, smi in zip(split, smiles)]
+            smiles = [(i // mols_per_pickle, osp.splitext(osp.split(fil)[-1])[0])
+                      for i, fil in zip(split, files)]
             if limit_molecules:
                 smiles = smiles[:limit_molecules]
             self.current_pickle = (None, None)
