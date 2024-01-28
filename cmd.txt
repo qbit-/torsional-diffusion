@@ -1,0 +1,1 @@
+python train.py --log_dir ./test_run --cache data/DRUGS/cache --std_pickles data/DRUGS/standardized_pickles --split_path data/DRUGS/small_split.npy --dataset drugs --n_epochs 2 --batch_size 32 --lr 1e-3 --num_workers 16 --scheduler_patience 20 --num_conv_layers 4 --use_second_order_repr --max_radius 5

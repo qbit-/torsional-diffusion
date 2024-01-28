@@ -1,0 +1,1 @@
+python generate_confs.py --test_csv data/DRUGS/test_smiles_small.csv --inference_steps 20 --model_dir workdir/drugs_cosmic_benchmark  --out conformers_drugs_small_20steps.pkl --tqdm --batch_size 128 --no_energy

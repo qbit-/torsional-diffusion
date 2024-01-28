@@ -1,0 +1,67 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Launch training DRUGS",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "--log_dir", "./test_run",
+                "--data_dir", "data/DRUGS/data/", 
+                "--cache", "data/DRUGS/cache",
+                "--std_pickles", "data/DRUGS/standardized_pickles",
+                "--split_path", "data/DRUGS/small_split.npy",
+                "--dataset", "drugs",
+                "--in_node_features", "74",
+                "--n_epochs", "2",
+                "--batch_size", "32",
+                "--lr", "1e-3",
+                "--num_workers", "1",
+                "--scheduler_patience", "20",
+                "--num_conv_layers", "4",
+                "--use_second_order_repr",
+                "--max_radius", "5",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Launch training QM9",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "args": [
+                "--log_dir", "./test_run",
+                "--data_dir", "data/QM9/qm9/", 
+                "--cache", "data/QM9/cache",
+                "--std_pickles", "data/QM9/standardized_pickles",
+                "--split_path", "data/QM9/full_split.npy",
+                "--dataset", "qm9",
+                "--in_node_features", "44",
+                "--n_epochs", "2",
+                "--batch_size", "32",
+                "--lr", "1e-3",
+                "--num_workers", "1",
+                "--scheduler_patience", "20",
+                "--num_conv_layers", "4",
+                "--use_second_order_repr",
+                "--max_radius", "5",
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}
